@@ -1,95 +1,57 @@
 #!/bin/bash
-# Hexo 双仓库部署脚本
-# 用法: 
-#   ./deploy.sh setup      # 首次设置
-#   ./deploy.sh            # 正常部署
+echo "🚀 Hexo 博客一键部署系统"
+echo "======================================"
 
-SERVER_USER="root"           # 修改为你的服务器用户名
-SERVER_IP="156.239.254.15"       # 修改为你的服务器IP
+# 配置信息
+GITHUB_REPO="https://github.com/kndiail/kndiailAwA.github.io.git"
+SERVER_IP="156.239.254.15"
+SERVER_USER="root"
 SERVER_REPO="/home/git/myblog.git"
 
-# 首次设置函数
-setup() {
-    echo "🔧 首次设置双仓库系统..."
-    
-    # 1. 生成静态文件
-    echo "1. 生成静态文件..."
-    hexo clean && hexo g
-    
-    # 2. 进入 public 目录
-    cd public
-    
-    # 3. 初始化独立的 Git 仓库
-    if [ ! -d ".git" ]; then
-        echo "2. 初始化 public 仓库..."
-        git init
-        git add .
-        git commit -m "首次提交"
-    fi
-    
-    # 4. 添加服务器远程仓库
-    echo "3. 添加服务器仓库..."
-    git remote add deploy $SERVER_USER@$SERVER_IP:$SERVER_REPO 2>/dev/null
-    if [ $? -ne 0 ]; then
-        echo "   已存在，更新地址..."
-        git remote set-url deploy $SERVER_USER@$SERVER_IP:$SERVER_REPO
-    fi
-    
-    # 5. 首次推送
-    echo "4. 首次推送代码到服务器..."
-    git push -u deploy master --force
-    
-    echo ""
-    echo "======================================"
-    echo "✅ 设置完成！"
-    echo "======================================"
-    echo "下次部署只需运行: ./deploy.sh"
-    echo "======================================"
-    
-    cd ..
-}
+echo "📝 步骤1: 备份源码到 GitHub..."
+git add .
+git commit -m "自动备份: $(date '+%Y-%m-%d %H:%M:%S')" || echo "⚠️ 无新更改，跳过提交"
 
-# 正常部署函数
-deploy() {
-    echo "🚀 开始部署..."
-    
-    # 1. 备份 GitHub 更改
-    echo "1. 备份源码到 GitHub..."
-    git add .
-    git commit -m "更新: $(date '+%Y-%m-%d %H:%M')" || echo "无更改，跳过提交"
-    git push origin master
-    
-    # 2. 生成静态文件
-    echo "2. 生成静态文件..."
-    hexo clean && hexo g
-    
-    # 3. 部署到服务器
-    echo "3. 部署到服务器..."
-    cd public
-    git add .
-    git commit -m "自动部署: $(date '+%Y-%m-%d %H:%M:%S')"
-    git push deploy master
-    
-    echo ""
-    echo "======================================"
-    echo "✅ 双仓库部署完成！"
-    echo "======================================"
-    echo "✅ 源码已推送到 GitHub"
-    echo "✅ 网站已部署到服务器"
-    echo "======================================"
-    echo "网站地址: http://$SERVER_IP"
-    echo "GitHub 仓库: https://github.com/你的用户名/myblog"
-    echo "======================================"
-    
-    cd ..
-}
+if git push origin master; then
+    echo "✅ GitHub 备份成功"
+else
+    echo "❌ GitHub 推送失败，尝试强制推送..."
+    git push origin master --force
+fi
 
-# 脚本主逻辑
-case "$1" in
-    setup)
-        setup
-        ;;
-    *)
-        deploy
-        ;;
-esac
+echo ""
+echo "🔨 步骤2: 生成静态文件..."
+hexo clean && hexo generate
+
+echo ""
+echo "🌐 步骤3: 部署到服务器..."
+cd public
+
+if [ ! -d ".git" ]; then
+    echo "初始化静态文件仓库..."
+    git init
+    git remote add deploy $SERVER_USER@$SERVER_IP:$SERVER_REPO
+fi
+
+git add .
+git commit -m "自动部署: $(date '+%Y-%m-%d %H:%M:%S')" || echo "⚠️ 无新更改"
+
+echo "推送静态文件到服务器..."
+if git push deploy master --force; then
+    echo "✅ 服务器部署成功"
+else
+    echo "❌ 服务器部署失败"
+fi
+
+cd ..
+
+echo ""
+echo "======================================"
+echo "🎉 部署完成！"
+echo "======================================"
+echo "📊 部署结果:"
+echo "   ✅ 源码已备份到 GitHub"
+echo "   ✅ 网站已部署到服务器"
+echo "🌐 访问地址: http://$SERVER_IP"
+echo "📁 GitHub: $GITHUB_REPO"
+echo "======================================"
